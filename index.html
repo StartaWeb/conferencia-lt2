@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Startweb | Conferência de Materiais Ebenezer</title>
+  <meta name="description" content="Sistema profissional de conferência de materiais — Startweb / Ebenezer">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+  <!-- HEADER -->
+  <header class="header-bar">
+    <div class="container py-4">
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+        <div class="d-flex align-items-center gap-3 header-branding">
+          <img src="imagem/logo.PNG" alt="Logotipo Startweb" class="header-logo">
+          <div>
+            <h1><i class="fa-solid fa-boxes-stacked me-2"></i>Startweb</h1>
+            <p class="lead mb-1">Conferência de Materiais</p>
+            <p class="mb-0">Setor: <strong>Expedição</strong></p>
+            <p class="mb-0">Desenvolvedor responsável: <strong>Roberto Ursine</strong></p>
+          </div>
+        </div>
+        <div class="text-md-end header-branding-end">
+          <img src="imagem/logo%20ebenezer.jfif" alt="Logo Ebenezer" class="header-logo-sm mb-3">
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container py-4">
+    <!-- STICKY CONTROL PANEL -->
+    <section class="control-panel" id="controlPanel">
+      <!-- Row 1: Filters -->
+      <div class="control-panel-section">
+        <div class="section-title"><i class="fa-solid fa-filter me-2"></i>Filtros e Pesquisa</div>
+        <div class="row g-3 align-items-end">
+          <div class="col-lg-3 col-md-6">
+            <label class="section-label" for="busca"><i class="fa-solid fa-magnifying-glass me-1"></i>Pesquisar</label>
+            <input type="text" id="busca" placeholder="Código, produto ou ordem..." class="form-control" onkeyup="aplicarFiltros()">
+          </div>
+          <div class="col-lg-3 col-md-6">
+            <label class="section-label" for="filtroLoja"><i class="fa-solid fa-store me-1"></i>Filtrar por Loja</label>
+            <select id="filtroLoja" class="form-select" onchange="aplicarFiltros()">
+              <option value="">Todas as Lojas</option>
+            </select>
+          </div>
+          <div class="col-lg-3 col-md-6">
+            <label class="section-label" for="filtroOrdem"><i class="fa-solid fa-file-invoice me-1"></i>Filtrar por Nº Ordem</label>
+            <select id="filtroOrdem" class="form-select" onchange="aplicarFiltros()">
+              <option value="">Todas as Ordens</option>
+            </select>
+          </div>
+          <div class="col-lg-3 col-md-6">
+            <label class="section-label" for="importarExcel"><i class="fa-solid fa-file-excel me-1"></i>Importar Planilha</label>
+            <input type="file" id="importarExcel" accept=".xlsx,.xls" class="form-control">
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: Conference + Actions -->
+      <div class="control-panel-section mt-3">
+        <div class="section-title"><i class="fa-solid fa-barcode me-2"></i>Conferência</div>
+        <div class="row g-3 align-items-end">
+          <div class="col-lg-4 col-md-5">
+            <label class="section-label" for="codigo">Código de Barras</label>
+            <input type="text" id="codigo" placeholder="Bipe ou digite o código" class="form-control" id="codigoInput">
+          </div>
+          <div class="col-lg-2 col-md-3">
+            <label class="section-label" for="quantidade">Qtde Conferida</label>
+            <input type="number" id="quantidade" placeholder="Qtde" class="form-control">
+          </div>
+          <div class="col-lg-2 col-md-4 d-grid">
+            <label class="section-label">&nbsp;</label>
+            <button class="btn btn-conferir" onclick="conferir()"><i class="fa-solid fa-check-double me-1"></i>Conferir</button>
+          </div>
+          <div class="col-lg-4 col-md-12">
+            <label class="section-label">&nbsp;</label>
+            <div class="d-flex flex-wrap gap-2">
+              <button class="btn btn-action btn-import" onclick="importar()"><i class="fa-solid fa-upload me-1"></i>Importar</button>
+              <button class="btn btn-action btn-export" onclick="exportar()"><i class="fa-solid fa-download me-1"></i>Exportar</button>
+              <button class="btn btn-action btn-pdf" onclick="exportarPDF()"><i class="fa-solid fa-file-pdf me-1"></i>PDF</button>
+              <button class="btn btn-action btn-add" onclick="adicionar()"><i class="fa-solid fa-plus me-1"></i>Novo</button>
+              <button class="btn btn-action btn-sample" onclick="carregarDadosIniciais()"><i class="fa-solid fa-database me-1"></i>Exemplo</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Conference feedback -->
+      <div id="feedbackConferencia" class="feedback-bar" style="display:none;"></div>
+    </section>
+
+    <!-- STATS CARDS -->
+    <section class="stats-row" id="statsRow">
+      <div class="stat-card">
+        <div class="stat-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
+        <div class="stat-info">
+          <span class="stat-value" id="statTotal">0</span>
+          <span class="stat-label">Qtde Esperada Total</span>
+        </div>
+      </div>
+      <div class="stat-card stat-conferida">
+        <div class="stat-icon"><i class="fa-solid fa-clipboard-check"></i></div>
+        <div class="stat-info">
+          <span class="stat-value" id="statTotalConferida">0</span>
+          <span class="stat-label">Qtde Conferida Total</span>
+        </div>
+      </div>
+      <div class="stat-card stat-linhas">
+        <div class="stat-icon"><i class="fa-solid fa-list"></i></div>
+        <div class="stat-info">
+          <span class="stat-value" id="statLinhas">0</span>
+          <span class="stat-label">Total Linhas</span>
+        </div>
+      </div>
+      <div class="stat-card stat-ok">
+        <div class="stat-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="stat-info">
+          <span class="stat-value" id="statOk">0</span>
+          <span class="stat-label">Conferidos OK</span>
+        </div>
+      </div>
+      <div class="stat-card stat-warning">
+        <div class="stat-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="stat-info">
+          <span class="stat-value" id="statDivergente">0</span>
+          <span class="stat-label">Divergentes</span>
+        </div>
+      </div>
+      <div class="stat-card stat-pending">
+        <div class="stat-icon"><i class="fa-solid fa-clock"></i></div>
+        <div class="stat-info">
+          <span class="stat-value" id="statPendente">0</span>
+          <span class="stat-label">Pendentes</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- TABLE -->
+    <section class="table-card">
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped mb-0" id="tabela">
+          <thead>
+            <tr>
+              <th><i class="fa-solid fa-barcode me-1"></i>Código</th>
+              <th><i class="fa-solid fa-box me-1"></i>Produto</th>
+              <th><i class="fa-solid fa-building me-1"></i>Editora</th>
+              <th><i class="fa-solid fa-list-ol me-1"></i>Qtde Esperada</th>
+              <th><i class="fa-solid fa-clipboard-check me-1"></i>Qtde Conferida</th>
+              <th><i class="fa-solid fa-signal me-1"></i>Status</th>
+              <th><i class="fa-solid fa-store me-1"></i>Loja</th>
+              <th><i class="fa-solid fa-file-invoice me-1"></i>Nº Ordem de Compra</th>
+              <th><i class="fa-solid fa-gear me-1"></i>Ações</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer-bar">
+    <div class="container text-center py-3">
+      <span><i class="fa-solid fa-shield-halved me-1"></i>Startweb © 2026 · Solução de conferência para Ebenezer · Desenvolvido por Roberto Ursine</span>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
