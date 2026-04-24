@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="historico.css">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
@@ -215,9 +216,62 @@
         </div>
       </div>
 
+      <!-- FILTRO RÁPIDO DE RANKING -->
+      <div class="ranking-filter-panel mb-3">
+        <div class="ranking-filter-header">
+          <div class="ranking-filter-title"><i class="fa-solid fa-sliders me-2"></i>Filtro Rápido de Ranking</div>
+          <span id="rankingModoAtivo" class="ranking-modo-badge" style="display:none;"></span>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap mt-2">
+          <!-- MAIS VENDIDOS -->
+          <div class="ranking-filter-group">
+            <span class="ranking-group-label"><i class="fa-solid fa-arrow-trend-up me-1" style="color:#34d399"></i>Mais Vendidos</span>
+            <div class="d-flex gap-1">
+              <button class="btn-rank" id="btnTop10mais"  onclick="aplicarFiltroRanking('mais', 10)">Top 10</button>
+              <button class="btn-rank" id="btnTop25mais"  onclick="aplicarFiltroRanking('mais', 25)">Top 25</button>
+              <button class="btn-rank" id="btnTop50mais"  onclick="aplicarFiltroRanking('mais', 50)">Top 50</button>
+              <button class="btn-rank" id="btnTop100mais" onclick="aplicarFiltroRanking('mais', 100)">Top 100</button>
+            </div>
+          </div>
+          <div class="ranking-filter-divider"></div>
+          <!-- MENOS VENDIDOS -->
+          <div class="ranking-filter-group">
+            <span class="ranking-group-label"><i class="fa-solid fa-arrow-trend-down me-1" style="color:#f87171"></i>Menos Vendidos</span>
+            <div class="d-flex gap-1">
+              <button class="btn-rank btn-rank-low" id="btnTop10menos"  onclick="aplicarFiltroRanking('menos', 10)">Últimos 10</button>
+              <button class="btn-rank btn-rank-low" id="btnTop25menos"  onclick="aplicarFiltroRanking('menos', 25)">Últimos 25</button>
+              <button class="btn-rank btn-rank-low" id="btnTop50menos"  onclick="aplicarFiltroRanking('menos', 50)">Últimos 50</button>
+              <button class="btn-rank btn-rank-low" id="btnTop100menos" onclick="aplicarFiltroRanking('menos', 100)">Últimos 100</button>
+            </div>
+          </div>
+          <div class="ranking-filter-divider"></div>
+          <!-- PERSONALIZADO -->
+          <div class="ranking-filter-group">
+            <span class="ranking-group-label"><i class="fa-solid fa-pen me-1" style="color:#a78bfa"></i>Personalizado</span>
+            <div class="d-flex gap-1 align-items-center">
+              <input type="number" id="inputTopN" class="ranking-topn-input" min="1" placeholder="N" title="Quantidade personalizada">
+              <button class="btn-rank" onclick="aplicarFiltroRanking('mais', parseInt(document.getElementById('inputTopN').value)||10)" style="color:#a78bfa;border-color:rgba(167,139,250,0.4);">↑ Mais</button>
+              <button class="btn-rank btn-rank-low" onclick="aplicarFiltroRanking('menos', parseInt(document.getElementById('inputTopN').value)||10)" style="color:#f87171;border-color:rgba(248,113,113,0.4);">↓ Menos</button>
+            </div>
+          </div>
+          <div class="d-flex gap-1 ms-auto flex-wrap align-items-center">
+            <button class="btn btn-sm btn-outline-secondary" onclick="limparFiltroRanking()" title="Ver ranking completo">
+              <i class="fa-solid fa-rotate-left me-1"></i>Ver Todos
+            </button>
+            <button class="btn btn-sm btn-pdf" onclick="exportarRankingPDF()" title="Exportar ranking atual em PDF">
+              <i class="fa-solid fa-file-pdf me-1"></i>PDF
+            </button>
+            <button class="btn btn-sm" onclick="exportarRankingExcel()" title="Exportar ranking atual em Excel"
+              style="background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.35);font-weight:700;">
+              <i class="fa-solid fa-file-excel me-1"></i>Excel
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- PESQUISA NO RANKING -->
       <div class="ranking-search-panel mb-3">
-        <div class="ranking-search-title"><i class="fa-solid fa-magnifying-glass me-2"></i>Pesquisar no Ranking Completo</div>
+        <div class="ranking-search-title"><i class="fa-solid fa-magnifying-glass me-2"></i>Pesquisar no Ranking</div>
         <div class="d-flex gap-2 align-items-center flex-wrap">
           <div class="ranking-search-wrap flex-grow-1">
             <i class="fa-solid fa-search ranking-search-icon"></i>

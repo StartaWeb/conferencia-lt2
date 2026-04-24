@@ -362,20 +362,36 @@ function renderizarTabelaRanking(filtro = '') {
   if (!tbody) return;
 
   const query = filtro.toLowerCase().trim();
-  const maxQtd = rankingCompleto.length > 0 ? rankingCompleto[0][1].qtd : 1;
 
-  const lista = query
-    ? rankingCompleto.filter(([nome, d]) =>
-        nome.toLowerCase().includes(query) ||
-        (d.codigo || '').toLowerCase().includes(query)
-      )
-    : rankingCompleto;
+  // 1) Aplicar slice de ranking (mais/menos vendidos)
+  let lista = rankingCompleto;
+  if (rankingSlice) {
+    if (rankingSlice.tipo === 'mais') {
+      lista = rankingCompleto.slice(0, rankingSlice.n);
+    } else {
+      // menos vendidos = últimos N (ordem crescente)
+      lista = rankingCompleto.slice(-rankingSlice.n).reverse();
+    }
+  }
+
+  // 2) Aplicar filtro de texto sobre o slice
+  if (query) {
+    lista = lista.filter(([nome, d]) =>
+      nome.toLowerCase().includes(query) ||
+      (d.codigo || '').toLowerCase().includes(query)
+    );
+  }
+
+  const maxQtd = rankingCompleto.length > 0 ? rankingCompleto[0][1].qtd : 1;
 
   tbody.innerHTML = '';
   lista.forEach(([nome, d], idx) => {
+    // Posição real no ranking global
+    const posGlobal = rankingCompleto.findIndex(([n]) => n === nome) + 1;
     const pct = maxQtd > 0 ? Math.round((d.qtd / maxQtd) * 100) : 0;
-    const medalha = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `<span style="color:var(--text-secondary)">${idx + 1}</span>`;
-    const corBarra = idx === 0 ? '#f59e0b' : idx < 3 ? '#60a5fa' : idx < 10 ? '#818cf8' : '#64748b';
+    const medalha = posGlobal === 1 ? '🥇' : posGlobal === 2 ? '🥈' : posGlobal === 3 ? '🥉'
+      : `<span style="color:var(--text-secondary)">${posGlobal}</span>`;
+    const corBarra = posGlobal === 1 ? '#f59e0b' : posGlobal < 4 ? '#60a5fa' : posGlobal < 11 ? '#818cf8' : '#64748b';
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td style="text-align:center;font-size:1.1rem;font-weight:800">${medalha}</td>
@@ -402,14 +418,188 @@ function renderizarTabelaRanking(filtro = '') {
   }
 }
 
+// ─── FILTRO RÁPIDO DE RANKING (mais/menos vendidos) ───
+let rankingSlice = null; // { tipo: 'mais'|'menos', n: number } ou null = todos
+
+function aplicarFiltroRanking(tipo, n) {
+  rankingSlice = { tipo, n };
+
+  // Atualizar visual dos botões
+  document.querySelectorAll('.btn-rank').forEach(b => b.classList.remove('active-rank'));
+  const idBtn = `btnTop${n}${tipo}`;
+  const btn = document.getElementById(idBtn);
+  if (btn) btn.classList.add('active-rank');
+
+  // Badge de modo ativo
+  const badge = document.getElementById('rankingModoAtivo');
+  const icon = tipo === 'mais'
+    ? '<i class="fa-solid fa-arrow-trend-up me-1" style="color:#34d399"></i>'
+    : '<i class="fa-solid fa-arrow-trend-down me-1" style="color:#f87171"></i>';
+  const label = tipo === 'mais' ? `Top ${n} Mais Vendidos` : `Últimos ${n} Menos Vendidos`;
+  badge.innerHTML = icon + label;
+  badge.style.display = 'inline-block';
+  badge.style.background = tipo === 'mais' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)';
+  badge.style.color = tipo === 'mais' ? '#34d399' : '#f87171';
+  badge.style.borderColor = tipo === 'mais' ? 'rgba(16,185,129,0.35)' : 'rgba(239,68,68,0.35)';
+
+  // Limpar pesquisa de texto ao mudar filtro
+  document.getElementById('inputPesquisaRanking').value = '';
+  renderizarTabelaRanking('');
+}
+
+function limparFiltroRanking() {
+  rankingSlice = null;
+  document.querySelectorAll('.btn-rank').forEach(b => b.classList.remove('active-rank'));
+  document.getElementById('rankingModoAtivo').style.display = 'none';
+  document.getElementById('inputPesquisaRanking').value = '';
+  renderizarTabelaRanking('');
+}
+
 function filtrarRanking() {
   const val = document.getElementById('inputPesquisaRanking').value;
+  // Pesquisa de texto limpa o slice de ranking
+  if (val) {
+    rankingSlice = null;
+    document.querySelectorAll('.btn-rank').forEach(b => b.classList.remove('active-rank'));
+    document.getElementById('rankingModoAtivo').style.display = 'none';
+  }
   renderizarTabelaRanking(val);
 }
 
 function limparPesquisaRanking() {
   document.getElementById('inputPesquisaRanking').value = '';
-  renderizarTabelaRanking();
+  renderizarTabelaRanking('');
+}
+
+// ─── HELPER: OBTER LISTA VISÍVEL DO RANKING ───
+function obterListaRankingAtual() {
+  const query = (document.getElementById('inputPesquisaRanking')?.value || '').toLowerCase().trim();
+  let lista = rankingCompleto;
+  if (rankingSlice) {
+    lista = rankingSlice.tipo === 'mais'
+      ? rankingCompleto.slice(0, rankingSlice.n)
+      : rankingCompleto.slice(-rankingSlice.n).reverse();
+  }
+  if (query) {
+    lista = lista.filter(([nome, d]) =>
+      nome.toLowerCase().includes(query) || (d.codigo || '').toLowerCase().includes(query)
+    );
+  }
+  return lista;
+}
+
+function tituloRanking() {
+  if (!rankingSlice) return 'Ranking Completo de Materiais';
+  return rankingSlice.tipo === 'mais'
+    ? `Top ${rankingSlice.n} — Mais Vendidos`
+    : `Últimos ${rankingSlice.n} — Menos Vendidos`;
+}
+
+// ─── EXPORTAR RANKING → PDF ───
+function exportarRankingPDF() {
+  const PDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+  if (!PDFClass) { alert('jsPDF não disponível.'); return; }
+
+  const lista = obterListaRankingAtual();
+  if (lista.length === 0) { alert('Nenhum item no ranking para exportar.'); return; }
+
+  const doc = new PDFClass({ unit: 'pt', format: 'a4', orientation: 'landscape' });
+  const now  = new Date().toLocaleString('pt-BR', { hour12: false });
+  const titulo = tituloRanking();
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(15);
+  doc.text(`Ranking de Materiais — Startweb / Ebenezer`, 40, 40);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`${titulo}  |  ${lista.length} material(is)  |  Gerado em: ${now}`, 40, 58);
+
+  const maxQtd = rankingCompleto.length > 0 ? rankingCompleto[0][1].qtd : 1;
+  const rows = lista.map(([nome, d], idx) => {
+    const posGlobal = rankingCompleto.findIndex(([n]) => n === nome) + 1;
+    const pct = maxQtd > 0 ? Math.round((d.qtd / maxQtd) * 100) : 0;
+    return [
+      String(posGlobal),
+      d.codigo || '—',
+      nome,
+      d.editora || '—',
+      String(d.qtd),
+      `${d.aparicoes}×`,
+      `${pct}%`
+    ];
+  });
+
+  doc.autoTable({
+    head: [['#', 'Código', 'Material', 'Editora', 'Total Conferido', 'Aparições', 'Distribuição']],
+    body: rows,
+    startY: 72,
+    margin: { left: 40, right: 40 },
+    styles: { fontSize: 9, cellPadding: 4 },
+    headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [245, 247, 255] },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 30 },
+      4: { halign: 'center' },
+      5: { halign: 'center' },
+      6: { halign: 'center' }
+    }
+  });
+
+  const nomeArquivo = rankingSlice
+    ? `ranking-${rankingSlice.tipo}-${rankingSlice.n}-ebenezer.pdf`
+    : 'ranking-completo-ebenezer.pdf';
+  doc.save(nomeArquivo);
+}
+
+// ─── EXPORTAR RANKING → EXCEL ───
+function exportarRankingExcel() {
+  if (typeof XLSX === 'undefined') { alert('Biblioteca XLSX não disponível.'); return; }
+
+  const lista = obterListaRankingAtual();
+  if (lista.length === 0) { alert('Nenhum item no ranking para exportar.'); return; }
+
+  const maxQtd = rankingCompleto.length > 0 ? rankingCompleto[0][1].qtd : 1;
+  const titulo = tituloRanking();
+
+  // Montar dados
+  const dados = lista.map(([nome, d]) => {
+    const posGlobal = rankingCompleto.findIndex(([n]) => n === nome) + 1;
+    const pct = maxQtd > 0 ? Math.round((d.qtd / maxQtd) * 100) : 0;
+    return {
+      'Posição':          posGlobal,
+      'Código':           d.codigo || '—',
+      'Material':         nome,
+      'Editora':          d.editora || '—',
+      'Total Conferido':  d.qtd,
+      'Aparições':        d.aparicoes,
+      'Distribuição (%)': pct
+    };
+  });
+
+  const ws = XLSX.utils.json_to_sheet(dados);
+
+  // Larguras de coluna
+  ws['!cols'] = [
+    { wch: 8 }, { wch: 14 }, { wch: 40 }, { wch: 20 },
+    { wch: 16 }, { wch: 10 }, { wch: 16 }
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, titulo.substring(0, 31));
+
+  // Aba de metadados
+  const meta = XLSX.utils.aoa_to_sheet([
+    ['Relatório', 'Ranking de Materiais — Startweb / Ebenezer'],
+    ['Filtro',    titulo],
+    ['Total',     lista.length + ' material(is)'],
+    ['Gerado em', new Date().toLocaleString('pt-BR', { hour12: false })]
+  ]);
+  XLSX.utils.book_append_sheet(wb, meta, 'Info');
+
+  const nomeArquivo = rankingSlice
+    ? `ranking-${rankingSlice.tipo}-${rankingSlice.n}-ebenezer.xlsx`
+    : 'ranking-completo-ebenezer.xlsx';
+  XLSX.writeFile(wb, nomeArquivo);
 }
 
 // ─── MOSTRAR ABA ───
