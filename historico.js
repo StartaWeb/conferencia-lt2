@@ -214,25 +214,30 @@ function renderizarProdutos() {
     (conf.itens || []).forEach(item => {
       const codigo    = (item.codigo  || '').trim();
       const nomeBruto = (item.produto || '').trim();
-      const chave = codigo ||
+
+      // Normalizar código: apenas dígitos (ignora ' . , - espaços etc.)
+      const codigoLimpo = codigo.replace(/[^0-9]/g, '');
+
+      // Chave primária = código limpo se disponível; senão nome normalizado
+      const chave = codigoLimpo ||
         nomeBruto.toLowerCase()
           .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-          .replace(/\s+/g, ' ') ||
+          .replace(/[^a-z0-9 ]/g, '')
+          .replace(/\s+/g, ' ').trim() ||
         '—';
 
       if (!mapa[chave]) {
         mapa[chave] = {
-          codigo: codigo || '—',
-          nomes:  {},
-          editora: item.editora || '—',
-          aparicoes: 0,
-          totalEsperado: 0,
-          totalConferido: 0
+          codigo:    codigoLimpo || codigo || '—',
+          nomes:     {},
+          editora:   item.editora || '—',
+          qtd:       0,
+          aparicoes: 0
         };
       }
+
+      mapa[chave].qtd       += (item.qtdeConferida || 0);
       mapa[chave].aparicoes++;
-      mapa[chave].totalEsperado  += item.qtdeEsperada  || 0;
-      mapa[chave].totalConferido += item.qtdeConferida || 0;
 
       const nomeKey = nomeBruto || '—';
       mapa[chave].nomes[nomeKey] = (mapa[chave].nomes[nomeKey] || 0) + 1;
@@ -283,22 +288,25 @@ function renderizarGraficos() {
   const mapa = {};
   todasConferencias.forEach(conf => {
     (conf.itens || []).forEach(item => {
-      const codigo   = (item.codigo   || '').trim();
+      const codigo    = (item.codigo  || '').trim();
       const nomeBruto = (item.produto || '').trim();
 
-      // Chave primária = código se disponível; senão nome normalizado (sem acentos, lowercase)
-      const chave = codigo ||
+      // Normalizar código: apenas dígitos
+      const codigoLimpo = codigo.replace(/[^0-9]/g, '');
+
+      const chave = codigoLimpo ||
         nomeBruto.toLowerCase()
           .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-          .replace(/\s+/g, ' ') ||
+          .replace(/[^a-z0-9 ]/g, '')
+          .replace(/\s+/g, ' ').trim() ||
         '—';
 
       if (!mapa[chave]) {
         mapa[chave] = {
-          codigo:   codigo || '—',
-          nomes:    {},    // contagem de variações do nome → pega o mais frequente
-          editora:  item.editora || '—',
-          qtd:      0,
+          codigo:    codigoLimpo || codigo || '—',
+          nomes:     {},
+          editora:   item.editora || '—',
+          qtd:       0,
           aparicoes: 0
         };
       }
@@ -306,11 +314,9 @@ function renderizarGraficos() {
       mapa[chave].qtd       += (item.qtdeConferida || 0);
       mapa[chave].aparicoes++;
 
-      // Rastrear nome mais usado
       const nomeKey = nomeBruto || '—';
       mapa[chave].nomes[nomeKey] = (mapa[chave].nomes[nomeKey] || 0) + 1;
 
-      // Preencher editora se ainda não definida
       if ((!mapa[chave].editora || mapa[chave].editora === '—') && item.editora)
         mapa[chave].editora = item.editora;
     });
