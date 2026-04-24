@@ -212,11 +212,18 @@ function renderizarProdutos() {
   const mapa = {};
   todasConferencias.forEach(conf => {
     (conf.itens || []).forEach(item => {
-      const chave = item.codigo || item.produto || '—';
+      const codigo    = (item.codigo  || '').trim();
+      const nomeBruto = (item.produto || '').trim();
+      const chave = codigo ||
+        nomeBruto.toLowerCase()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .replace(/\s+/g, ' ') ||
+        '—';
+
       if (!mapa[chave]) {
         mapa[chave] = {
-          codigo: item.codigo || '—',
-          produto: item.produto || '—',
+          codigo: codigo || '—',
+          nomes:  {},
           editora: item.editora || '—',
           aparicoes: 0,
           totalEsperado: 0,
@@ -224,12 +231,24 @@ function renderizarProdutos() {
         };
       }
       mapa[chave].aparicoes++;
-      mapa[chave].totalEsperado += item.qtdeEsperada || 0;
+      mapa[chave].totalEsperado  += item.qtdeEsperada  || 0;
       mapa[chave].totalConferido += item.qtdeConferida || 0;
+
+      const nomeKey = nomeBruto || '—';
+      mapa[chave].nomes[nomeKey] = (mapa[chave].nomes[nomeKey] || 0) + 1;
+
+      if ((!mapa[chave].editora || mapa[chave].editora === '—') && item.editora)
+        mapa[chave].editora = item.editora;
     });
   });
 
-  const lista = Object.values(mapa).sort((a, b) => b.aparicoes - a.aparicoes);
+  const lista = Object.entries(mapa)
+    .map(([chave, d]) => ({
+      ...d,
+      produto: Object.entries(d.nomes).sort((a, b) => b[1] - a[1])[0]?.[0] || chave
+    }))
+    .sort((a, b) => b.aparicoes - a.aparicoes);
+
   const tbody = document.getElementById('tbodyProdutos');
   tbody.innerHTML = '';
 
@@ -239,7 +258,7 @@ function renderizarProdutos() {
     const cor = conformidade >= 95 ? '#10b981' : conformidade >= 70 ? '#f59e0b' : '#ef4444';
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${p.codigo}</td>
+      <td><code style="font-size:0.78rem;color:#94a3b8">${p.codigo}</code></td>
       <td>${p.produto}</td>
       <td>${p.editora}</td>
       <td><strong style="color:#60a5fa">${p.aparicoes}×</strong></td>
@@ -260,21 +279,53 @@ function renderizarProdutos() {
 
 // ─── ABA: GRÁFICOS ───
 function renderizarGraficos() {
-  // Aggregar por produto
+  // Agregar por CÓDIGO (EAN) — chave mais confiável para evitar duplicatas por grafia diferente
   const mapa = {};
   todasConferencias.forEach(conf => {
     (conf.itens || []).forEach(item => {
-      const chave = item.produto || item.codigo || '—';
+      const codigo   = (item.codigo   || '').trim();
+      const nomeBruto = (item.produto || '').trim();
+
+      // Chave primária = código se disponível; senão nome normalizado (sem acentos, lowercase)
+      const chave = codigo ||
+        nomeBruto.toLowerCase()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .replace(/\s+/g, ' ') ||
+        '—';
+
       if (!mapa[chave]) {
-        mapa[chave] = { qtd: 0, aparicoes: 0, codigo: item.codigo || '—', editora: item.editora || '—' };
+        mapa[chave] = {
+          codigo:   codigo || '—',
+          nomes:    {},    // contagem de variações do nome → pega o mais frequente
+          editora:  item.editora || '—',
+          qtd:      0,
+          aparicoes: 0
+        };
       }
-      mapa[chave].qtd += (item.qtdeConferida || 0);
+
+      mapa[chave].qtd       += (item.qtdeConferida || 0);
       mapa[chave].aparicoes++;
+
+      // Rastrear nome mais usado
+      const nomeKey = nomeBruto || '—';
+      mapa[chave].nomes[nomeKey] = (mapa[chave].nomes[nomeKey] || 0) + 1;
+
+      // Preencher editora se ainda não definida
+      if ((!mapa[chave].editora || mapa[chave].editora === '—') && item.editora)
+        mapa[chave].editora = item.editora;
     });
   });
 
-  const sorted = Object.entries(mapa).sort((a, b) => b[1].qtd - a[1].qtd);
-  rankingCompleto = sorted; // salva ranking completo para pesquisa
+  // Resolver nome mais frequente e ordenar por quantidade conferida
+  const sorted = Object.entries(mapa)
+    .map(([chave, d]) => {
+      const nomeMaisFrequente =
+        Object.entries(d.nomes).sort((a, b) => b[1] - a[1])[0]?.[0] || chave;
+      return [nomeMaisFrequente, { ...d }];
+    })
+    .sort((a, b) => b[1].qtd - a[1].qtd);
+
+  rankingCompleto = sorted;
   const top15 = sorted.slice(0, 15);
   const labels = top15.map(([nome]) => nome.length > 28 ? nome.substring(0, 26) + '…' : nome);
   const values = top15.map(([, d]) => d.qtd);
