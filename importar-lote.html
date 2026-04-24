@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Startweb | Importar Lote — Ebenezer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="db.js"></script>
+  <style>
+    body { background: var(--bg); color: var(--text); font-family: var(--font); }
+
+    .lote-dropzone {
+      border: 2px dashed rgba(59,130,246,0.45);
+      border-radius: 16px;
+      background: rgba(59,130,246,0.06);
+      padding: 3rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .lote-dropzone:hover, .lote-dropzone.drag-over {
+      border-color: #3b82f6;
+      background: rgba(59,130,246,0.12);
+    }
+    .lote-dropzone i { font-size: 3rem; color: #3b82f6; margin-bottom: 1rem; }
+    .lote-dropzone h5 { color: var(--text); font-weight: 700; }
+    .lote-dropzone p  { color: var(--text-secondary); font-size: 0.88rem; }
+
+    .planilha-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      transition: all 0.2s;
+    }
+    .planilha-card.status-ok    { border-color: rgba(16,185,129,0.4); }
+    .planilha-card.status-erro  { border-color: rgba(239,68,68,0.4); }
+    .planilha-card.status-salvo { border-color: rgba(16,185,129,0.6); background: rgba(16,185,129,0.06); }
+
+    .planilha-nome { font-weight: 700; color: #60a5fa; flex: 1; min-width: 180px; font-size: 0.95rem; }
+    .planilha-info { font-size: 0.8rem; color: var(--text-secondary); display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .planilha-info span { display: flex; align-items: center; gap: 0.3rem; }
+    .planilha-status { font-size: 0.78rem; font-weight: 700; padding: 0.25rem 0.7rem; border-radius: 999px; white-space: nowrap; }
+    .ps-aguardando  { background: rgba(148,163,184,0.15); color: #94a3b8; border: 1px solid rgba(148,163,184,0.3); }
+    .ps-processando { background: rgba(245,158,11,0.15);  color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+    .ps-salvo       { background: rgba(16,185,129,0.15);  color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+    .ps-erro        { background: rgba(239,68,68,0.15);   color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+
+    .progress-lote {
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(148,163,184,0.15);
+      overflow: hidden;
+      margin: 1rem 0;
+    }
+    .progress-lote-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #3b82f6, #818cf8);
+      transition: width 0.4s ease;
+    }
+
+    .resumo-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .resumo-num { font-size: 2rem; font-weight: 800; }
+    .resumo-label { font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.1em; }
+
+    /* ── STATUS OK TOGGLE ── */
+    .status-ok-toggle {
+      background: var(--surface);
+      border: 1.5px solid rgba(148,163,184,0.2);
+      border-radius: 14px;
+      padding: 1.1rem 1.4rem;
+      transition: border-color 0.3s, background 0.3s;
+    }
+    .status-ok-toggle.mode-on {
+      border-color: rgba(16,185,129,0.5);
+      background: rgba(16,185,129,0.06);
+    }
+    .toggle-icon {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      background: rgba(148,163,184,0.12);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.25rem;
+      color: #64748b;
+      flex-shrink: 0;
+      transition: background 0.3s, color 0.3s;
+    }
+    .status-ok-toggle.mode-on .toggle-icon {
+      background: rgba(16,185,129,0.18);
+      color: #34d399;
+    }
+    .toggle-title {
+      font-weight: 700; font-size: 1rem; color: var(--text);
+      display: flex; align-items: center; gap: 0.4rem;
+    }
+    .badge-ok-text {
+      background: rgba(16,185,129,0.15);
+      color: #34d399;
+      border: 1px solid rgba(16,185,129,0.35);
+      border-radius: 6px;
+      padding: 0 0.45rem;
+      font-size: 0.9rem;
+      font-weight: 800;
+    }
+    .toggle-desc { font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.2rem; }
+
+    /* Toggle switch */
+    .switch-ok { position: relative; display: inline-flex; cursor: pointer; }
+    .switch-ok input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .switch-ok-slider {
+      width: 52px; height: 28px;
+      background: rgba(148,163,184,0.25);
+      border-radius: 999px;
+      display: block;
+      transition: background 0.3s;
+      position: relative;
+    }
+    .switch-ok-slider::after {
+      content: '';
+      position: absolute;
+      top: 4px; left: 4px;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: #94a3b8;
+      transition: transform 0.3s, background 0.3s;
+    }
+    .switch-ok input:checked + .switch-ok-slider { background: rgba(16,185,129,0.35); }
+    .switch-ok input:checked + .switch-ok-slider::after {
+      transform: translateX(24px);
+      background: #34d399;
+    }
+
+    /* Active mode alert */
+    .ok-mode-active {
+      margin-top: 0.85rem;
+      padding: 0.6rem 1rem;
+      background: rgba(16,185,129,0.12);
+      border: 1px solid rgba(16,185,129,0.35);
+      border-radius: 8px;
+      color: #34d399;
+      font-size: 0.83rem;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header-bar">
+    <div class="container py-4">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div class="d-flex align-items-center gap-3 header-branding">
+          <img src="imagem/logo.PNG" alt="Logotipo Startweb" class="header-logo">
+          <div>
+            <h1><i class="fa-solid fa-layer-group me-2"></i>Startweb</h1>
+            <p class="lead mb-0">Importar Planilhas em Lote</p>
+            <p class="mb-0">Setor: <strong>Expedição</strong></p>
+          </div>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="index.html" class="btn btn-outline-light btn-sm">
+            <i class="fa-solid fa-arrow-left me-1"></i>Conferência
+          </a>
+          <a href="historico.html" class="btn btn-outline-light btn-sm">
+            <i class="fa-solid fa-chart-bar me-1"></i>Histórico
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container py-4">
+
+    <!-- INSTRUÇÃO -->
+    <div class="alert alert-info d-flex gap-2 align-items-start mb-4" style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);color:#93c5fd;">
+      <i class="fa-solid fa-circle-info mt-1"></i>
+      <div>
+        <strong>Como funciona:</strong> Selecione várias planilhas <code>.xlsx</code> já conferidas. O sistema lê cada uma, calcula o status automaticamente (Completo / Parcial / Com Divergência) e salva todas no Firebase de uma vez.
+        <br><small>A planilha deve ter colunas: <strong>Ean / Produto / Editora / QTDE / Conferida / Status / Loja / Numero Ordem de Compra</strong></small>
+      </div>
+    </div>
+
+    <!-- OPÇÃO: FORÇAR STATUS OK -->
+    <div class="status-ok-toggle mb-4" id="toggleStatusOk">
+      <div class="d-flex align-items-center gap-3 flex-wrap">
+        <div class="toggle-icon">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <div class="flex-grow-1">
+          <div class="toggle-title">Importar com Status <span class="badge-ok-text">OK</span></div>
+          <div class="toggle-desc">Força Qtde Conferida = Qtde Esperada e Status = <strong>OK</strong> para todos os itens. Use quando a conferência já foi aprovada.</div>
+        </div>
+        <label class="switch-ok" for="chkStatusOk" title="Ativar importação com status OK">
+          <input type="checkbox" id="chkStatusOk" onchange="toggleOkMode(this.checked)">
+          <span class="switch-ok-slider"></span>
+        </label>
+      </div>
+      <div id="okModeAlert" class="ok-mode-active" style="display:none;">
+        <i class="fa-solid fa-bolt me-2"></i>
+        Modo ativo — todos os itens serão importados com <strong>Qtde Conferida = Qtde Esperada</strong> e <strong>Status = OK</strong>
+      </div>
+    </div>
+
+    <!-- DROP ZONE -->
+    <div class="lote-dropzone mb-4" id="dropzone" onclick="document.getElementById('inputLote').click()"
+         ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropArquivos(event)">
+      <i class="fa-solid fa-cloud-arrow-up d-block"></i>
+      <h5>Arraste as planilhas aqui ou clique para selecionar</h5>
+      <p>Aceita múltiplos arquivos <strong>.xlsx</strong> simultaneamente</p>
+      <input type="file" id="inputLote" accept=".xlsx,.xls" multiple style="display:none" onchange="carregarArquivos(this.files)">
+      <button class="btn btn-primary mt-2" onclick="event.stopPropagation(); document.getElementById('inputLote').click()">
+        <i class="fa-solid fa-folder-open me-2"></i>Selecionar Arquivos
+      </button>
+    </div>
+
+    <!-- RESUMO -->
+    <div id="painelResumo" style="display:none" class="resumo-card mb-4">
+      <div>
+        <div class="resumo-num" id="rTotal" style="color:#60a5fa">0</div>
+        <div class="resumo-label">Planilhas</div>
+      </div>
+      <div>
+        <div class="resumo-num" id="rItens" style="color:#a78bfa">0</div>
+        <div class="resumo-label">Itens Total</div>
+      </div>
+      <div>
+        <div class="resumo-num" id="rSalvas" style="color:#34d399">0</div>
+        <div class="resumo-label">Salvas</div>
+      </div>
+      <div>
+        <div class="resumo-num" id="rErros" style="color:#f87171">0</div>
+        <div class="resumo-label">Erros</div>
+      </div>
+      <div class="flex-grow-1">
+        <div class="progress-lote"><div class="progress-lote-fill" id="barraProgresso" style="width:0%"></div></div>
+        <div id="textoProgresso" class="text-secondary" style="font-size:0.8rem"></div>
+      </div>
+    </div>
+
+    <!-- AÇÕES -->
+    <div id="painelAcoes" style="display:none" class="d-flex gap-2 mb-3 flex-wrap">
+      <button class="btn btn-success" id="btnSalvarTudo" onclick="salvarTudo()">
+        <i class="fa-solid fa-floppy-disk me-2"></i>Salvar Todas no Firebase
+      </button>
+      <button class="btn btn-outline-danger btn-sm" onclick="limparTudo()">
+        <i class="fa-solid fa-trash me-1"></i>Limpar
+      </button>
+      <span id="badgePlanilhas" class="align-self-center" style="font-size:0.82rem;color:#94a3b8"></span>
+    </div>
+
+    <!-- LISTA DE PLANILHAS -->
+    <div id="listaPlanilhas"></div>
+
+  </main>
+
+  <footer class="footer-bar">
+    <div class="container text-center py-3">
+      <span><i class="fa-solid fa-shield-halved me-1"></i>Startweb © 2026 · Importação em Lote · Ebenezer · Roberto Ursine</span>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="importar-lote.js"></script>
+</body>
+</html>

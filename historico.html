@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Startweb | Histórico & Relatórios — Ebenezer</title>
+  <meta name="description" content="Histórico de conferências e relatórios analíticos — Startweb / Ebenezer">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="historico.css">
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <script src="db.js"></script>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="header-bar">
+    <div class="container py-4">
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+        <div class="d-flex align-items-center gap-3 header-branding">
+          <img src="imagem/logo.PNG" alt="Logotipo Startweb" class="header-logo">
+          <div>
+            <h1><i class="fa-solid fa-chart-bar me-2"></i>Startweb</h1>
+            <p class="lead mb-1">Histórico & Relatórios</p>
+            <p class="mb-0">Setor: <strong>Expedição</strong></p>
+            <p class="mb-0">Desenvolvedor responsável: <strong>Roberto Ursine</strong></p>
+          </div>
+        </div>
+        <div class="text-md-end header-branding-end d-flex flex-column align-items-end gap-2">
+          <img src="imagem/logo%20ebenezer.jfif" alt="Logo Ebenezer" class="header-logo-sm mb-2">
+          <a href="index.html" class="btn btn-outline-light btn-sm">
+            <i class="fa-solid fa-arrow-left me-1"></i>Voltar à Conferência
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container py-4">
+
+    <!-- FILTROS -->
+    <section class="hist-filter-panel mb-4">
+      <div class="hist-filter-title"><i class="fa-solid fa-filter me-2"></i>Filtros Avançados</div>
+      <div class="row g-3 align-items-end">
+        <div class="col-lg-2 col-md-4">
+          <label class="section-label" for="filtroDataInicio"><i class="fa-solid fa-calendar-days me-1"></i>Data Início</label>
+          <input type="date" id="filtroDataInicio" class="form-control">
+        </div>
+        <div class="col-lg-2 col-md-4">
+          <label class="section-label" for="filtroDataFim"><i class="fa-solid fa-calendar-check me-1"></i>Data Fim</label>
+          <input type="date" id="filtroDataFim" class="form-control">
+        </div>
+        <div class="col-lg-3 col-md-4">
+          <label class="section-label" for="filtroOrdem"><i class="fa-solid fa-file-invoice me-1"></i>Ordem de Compra</label>
+          <input type="text" id="filtroOrdem" class="form-control" placeholder="Pesquisar ordem...">
+        </div>
+        <div class="col-lg-2 col-md-4">
+          <label class="section-label" for="filtroLoja"><i class="fa-solid fa-store me-1"></i>Loja</label>
+          <select id="filtroLoja" class="form-select">
+            <option value="">Todas as Lojas</option>
+          </select>
+        </div>
+        <div class="col-lg-2 col-md-4">
+          <label class="section-label" for="filtroStatus"><i class="fa-solid fa-signal me-1"></i>Status</label>
+          <select id="filtroStatus" class="form-select">
+            <option value="">Todos</option>
+            <option value="Completo">Completo</option>
+            <option value="Parcial">Parcial</option>
+            <option value="Com Divergência">Com Divergência</option>
+          </select>
+        </div>
+        <div class="col-lg-1 col-md-4 d-grid">
+          <label class="section-label">&nbsp;</label>
+          <button class="btn btn-primary" onclick="aplicarFiltros()" id="btnFiltrar">
+            <i class="fa-solid fa-magnifying-glass me-1"></i>Buscar
+          </button>
+        </div>
+      </div>
+      <div class="mt-2 d-flex gap-2 flex-wrap">
+        <button class="btn btn-sm btn-outline-secondary" onclick="limparFiltros()">
+          <i class="fa-solid fa-rotate-left me-1"></i>Limpar Filtros
+        </button>
+        <button class="btn btn-sm btn-pdf" onclick="exportarRelatorioPDF()">
+          <i class="fa-solid fa-file-pdf me-1"></i>Exportar Relatório PDF
+        </button>
+        <span id="contadorResultados" class="hist-badge-count align-self-center"></span>
+      </div>
+    </section>
+
+    <!-- STATS DO HISTÓRICO -->
+    <section class="stats-row mb-4" id="statsHistorico">
+      <div class="stat-card">
+        <div class="stat-icon"><i class="fa-solid fa-folder-open"></i></div>
+        <div class="stat-info">
+          <span class="stat-value" id="hStatSessoes">0</span>
+          <span class="stat-label">Conferências</span>
+        </div>
+      </div>
+      <div class="stat-card stat-ok">
+        <div class="stat-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="stat-info">
+          <span class="stat-value" id="hStatCompletas">0</span>
+          <span class="stat-label">Completas</span>
+        </div>
+      </div>
+      <div class="stat-card stat-warning">
+        <div class="stat-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="stat-info">
+          <span class="stat-value" id="hStatDivergentes">0</span>
+          <span class="stat-label">Com Divergência</span>
+        </div>
+      </div>
+      <div class="stat-card stat-conferida">
+        <div class="stat-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
+        <div class="stat-info">
+          <span class="stat-value" id="hStatTotalItens">0</span>
+          <span class="stat-label">Total de Itens</span>
+        </div>
+      </div>
+      <div class="stat-card stat-linhas">
+        <div class="stat-icon"><i class="fa-solid fa-percent"></i></div>
+        <div class="stat-info">
+          <span class="stat-value" id="hStatTaxa">0%</span>
+          <span class="stat-label">Taxa de Conformidade</span>
+        </div>
+      </div>
+      <div class="stat-card stat-pending">
+        <div class="stat-icon"><i class="fa-solid fa-clock"></i></div>
+        <div class="stat-info">
+          <span class="stat-value" id="hStatParciais">0</span>
+          <span class="stat-label">Parciais</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABAS -->
+    <ul class="nav hist-tabs mb-3" id="histTabs">
+      <li class="nav-item">
+        <button class="hist-tab active" onclick="mostrarAba('conferencias', this)">
+          <i class="fa-solid fa-list me-1"></i>Conferências
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="hist-tab" onclick="mostrarAba('produtos', this)">
+          <i class="fa-solid fa-box me-1"></i>Relatório de Produtos
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="hist-tab" onclick="mostrarAba('ranking', this)">
+          <i class="fa-solid fa-trophy me-1"></i>Ranking de Materiais
+        </button>
+      </li>
+    </ul>
+
+    <!-- LOADING -->
+    <div id="loadingPanel" class="hist-loading">
+      <i class="fa-solid fa-spinner fa-spin me-2"></i>Carregando dados do Firebase...
+    </div>
+
+    <!-- ABA: CONFERÊNCIAS -->
+    <div id="abaConferencias" class="aba-panel">
+      <div id="listaConferencias"></div>
+      <div id="semDados" class="hist-empty" style="display:none;">
+        <i class="fa-solid fa-folder-open fa-3x mb-3"></i>
+        <p>Nenhuma conferência encontrada com os filtros selecionados.</p>
+        <small class="text-secondary">Salve uma conferência na página principal para começar.</small>
+      </div>
+    </div>
+
+    <!-- ABA: PRODUTOS -->
+    <div id="abaProdutos" class="aba-panel" style="display:none;">
+      <div class="table-card">
+        <div class="table-responsive">
+          <table class="table table-bordered table-striped mb-0" id="tabelaProdutos">
+            <thead>
+              <tr>
+                <th><i class="fa-solid fa-barcode me-1"></i>Código</th>
+                <th><i class="fa-solid fa-box me-1"></i>Produto</th>
+                <th><i class="fa-solid fa-building me-1"></i>Editora</th>
+                <th><i class="fa-solid fa-hashtag me-1"></i>Aparições</th>
+                <th><i class="fa-solid fa-list-ol me-1"></i>Total Esperado</th>
+                <th><i class="fa-solid fa-clipboard-check me-1"></i>Total Conferido</th>
+                <th><i class="fa-solid fa-percent me-1"></i>Conformidade</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyProdutos"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABA: RANKING -->
+    <div id="abaRanking" class="aba-panel" style="display:none;">
+      <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+          <div class="hist-chart-card">
+            <div class="hist-chart-title"><i class="fa-solid fa-trophy me-2 text-warning"></i>Top 15 Materiais Mais Passados</div>
+            <canvas id="chartRanking" height="350"></canvas>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="hist-chart-card">
+            <div class="hist-chart-title"><i class="fa-solid fa-chart-pie me-2 text-info"></i>Distribuição de Status</div>
+            <canvas id="chartStatus" height="260"></canvas>
+            <div id="legendaStatus" class="mt-3"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PESQUISA NO RANKING -->
+      <div class="ranking-search-panel mb-3">
+        <div class="ranking-search-title"><i class="fa-solid fa-magnifying-glass me-2"></i>Pesquisar no Ranking Completo</div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+          <div class="ranking-search-wrap flex-grow-1">
+            <i class="fa-solid fa-search ranking-search-icon"></i>
+            <input type="text" id="inputPesquisaRanking" class="ranking-search-input" placeholder="Buscar por nome ou código do material..." oninput="filtrarRanking()">
+          </div>
+          <button class="btn btn-sm btn-outline-secondary" onclick="limparPesquisaRanking()">
+            <i class="fa-solid fa-rotate-left me-1"></i>Limpar
+          </button>
+          <span id="contadorRanking" class="hist-badge-count"></span>
+        </div>
+      </div>
+
+      <!-- TABELA RANKING COMPLETO -->
+      <div class="table-card">
+        <div class="table-responsive">
+          <table class="table table-bordered mb-0" id="tabelaRanking">
+            <thead>
+              <tr>
+                <th style="width:56px;text-align:center">#</th>
+                <th><i class="fa-solid fa-barcode me-1"></i>Código</th>
+                <th><i class="fa-solid fa-box me-1"></i>Material</th>
+                <th><i class="fa-solid fa-building me-1"></i>Editora</th>
+                <th><i class="fa-solid fa-clipboard-check me-1"></i>Total Conferido</th>
+                <th><i class="fa-solid fa-hashtag me-1"></i>Aparições</th>
+                <th><i class="fa-solid fa-chart-bar me-1"></i>Distribuição</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyRanking"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODAL DETALHE CONFERÊNCIA -->
+  <div class="modal fade" id="modalDetalhe" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;">
+        <div class="modal-header" style="border-bottom:1px solid #334155;">
+          <h5 class="modal-title"><i class="fa-solid fa-list me-2 text-info"></i>Itens da Conferência</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-0">
+          <div class="table-responsive">
+            <table class="table table-bordered table-striped mb-0" id="tabelaDetalhe">
+              <thead>
+                <tr>
+                  <th>Código</th><th>Produto</th><th>Editora</th>
+                  <th>Qtde Esperada</th><th>Qtde Conferida</th><th>Status</th>
+                  <th>Loja</th><th>Ordem de Compra</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyDetalhe"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-top:1px solid #334155;">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer-bar">
+    <div class="container text-center py-3">
+      <span><i class="fa-solid fa-shield-halved me-1"></i>Startweb © 2026 · Histórico & Relatórios · Ebenezer · Roberto Ursine</span>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="historico.js"></script>
+</body>
+</html>

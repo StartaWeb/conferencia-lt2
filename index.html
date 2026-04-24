@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -14,6 +14,10 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <!-- Firebase Compat SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="db.js"></script>
 </head>
 <body>
   <!-- HEADER -->
@@ -29,8 +33,14 @@
             <p class="mb-0">Desenvolvedor responsável: <strong>Roberto Ursine</strong></p>
           </div>
         </div>
-        <div class="text-md-end header-branding-end">
-          <img src="imagem/logo%20ebenezer.jfif" alt="Logo Ebenezer" class="header-logo-sm mb-3">
+        <div class="text-md-end header-branding-end d-flex flex-column align-items-end gap-2">
+          <img src="imagem/logo%20ebenezer.jfif" alt="Logo Ebenezer" class="header-logo-sm mb-2">
+          <a href="importar-lote.html" class="btn btn-outline-light btn-sm">
+            <i class="fa-solid fa-layer-group me-1"></i>Importar em Lote
+          </a>
+          <a href="historico.html" class="btn btn-outline-light btn-sm">
+            <i class="fa-solid fa-chart-bar me-1"></i>Histórico & Relatórios
+          </a>
         </div>
       </div>
     </div>
@@ -90,6 +100,7 @@
               <button class="btn btn-action btn-pdf" onclick="exportarPDF()"><i class="fa-solid fa-file-pdf me-1"></i>PDF</button>
               <button class="btn btn-action btn-add" onclick="adicionar()"><i class="fa-solid fa-plus me-1"></i>Novo</button>
               <button class="btn btn-action btn-sample" onclick="carregarDadosIniciais()"><i class="fa-solid fa-database me-1"></i>Exemplo</button>
+              <button class="btn btn-action btn-save" onclick="salvarConferencia()" id="btnSalvar"><i class="fa-solid fa-floppy-disk me-1"></i>Salvar</button>
             </div>
           </div>
         </div>
@@ -168,12 +179,44 @@
     </section>
   </main>
 
+  <!-- MODAL SALVAR CONFERÊNCIA -->
+  <div class="modal fade" id="modalSalvar" tabindex="-1" aria-labelledby="modalSalvarLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;">
+        <div class="modal-header" style="border-bottom:1px solid #334155;">
+          <h5 class="modal-title" id="modalSalvarLabel"><i class="fa-solid fa-floppy-disk me-2 text-success"></i>Salvar Conferência</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-3 text-secondary">Confirme os dados antes de salvar no banco:</p>
+          <table class="table table-sm" style="color:#e2e8f0;">
+            <tbody>
+              <tr><th style="color:#94a3b8;">Ordem de Compra</th><td id="modalOrdem" class="fw-bold text-info"></td></tr>
+              <tr><th style="color:#94a3b8;">Lojas</th><td id="modalLojas"></td></tr>
+              <tr><th style="color:#94a3b8;">Total de Itens</th><td id="modalTotal"></td></tr>
+              <tr><th style="color:#94a3b8;">Qtde Esperada</th><td id="modalEsperado"></td></tr>
+              <tr><th style="color:#94a3b8;">Qtde Conferida</th><td id="modalConferido"></td></tr>
+              <tr><th style="color:#94a3b8;">Status Geral</th><td id="modalStatus" class="fw-bold"></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="modal-footer" style="border-top:1px solid #334155;">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-success" id="btnConfirmarSalvar" onclick="confirmarSalvar()">
+            <i class="fa-solid fa-check me-1"></i>Confirmar e Salvar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <footer class="footer-bar">
     <div class="container text-center py-3">
       <span><i class="fa-solid fa-shield-halved me-1"></i>Startweb © 2026 · Solução de conferência para Ebenezer · Desenvolvido por Roberto Ursine</span>
     </div>
   </footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

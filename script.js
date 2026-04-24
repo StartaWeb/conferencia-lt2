@@ -635,3 +635,90 @@ function configurarOrdenacao() {
 
 // Inicializar ordenação quando a página carregar
 window.addEventListener("DOMContentLoaded", configurarOrdenacao);
+
+// ─── SALVAR CONFERÊNCIA NO FIREBASE ───
+function prepararDadosSalvar() {
+  const rows = [];
+  const lojas = new Set();
+  const ordens = new Set();
+
+  document.querySelectorAll("#tabela tbody tr").forEach(tr => {
+    const cols = tr.querySelectorAll("td");
+    const status = tr.cells[5].querySelector("select")?.value || "-";
+    const loja = cols[6].textContent.trim();
+    const ordem = cols[7].textContent.trim();
+    if (loja) lojas.add(loja);
+    if (ordem) ordens.add(ordem);
+    rows.push({
+      codigo: cols[0].textContent.trim(),
+      produto: cols[1].textContent.trim(),
+      editora: cols[2].textContent.trim(),
+      qtdeEsperada: parseInt(cols[3].textContent) || 0,
+      qtdeConferida: parseInt(cols[4].textContent) || 0,
+      status: status,
+      loja: loja,
+      ordemCompra: ordem
+    });
+  });
+
+  const totalEsperado = rows.reduce((s, r) => s + r.qtdeEsperada, 0);
+  const totalConferido = rows.reduce((s, r) => s + r.qtdeConferida, 0);
+  const pendentes = rows.filter(r => r.status === "-").length;
+  const divergentes = rows.filter(r => r.status === "Superior" || r.status === "Faltando").length;
+  let statusGeral = "Completo";
+  if (pendentes > 0) statusGeral = "Parcial";
+  else if (divergentes > 0) statusGeral = "Com Divergência";
+
+  const listaOrdens = [...ordens].filter(Boolean);
+  return {
+    ordemCompra: listaOrdens[0] || "Sem Ordem",
+    todasOrdens: listaOrdens,
+    lojas: [...lojas].filter(Boolean),
+    totalItens: rows.length,
+    totalEsperado,
+    totalConferido,
+    statusGeral,
+    itens: rows
+  };
+}
+
+function salvarConferencia() {
+  const dados = prepararDadosSalvar();
+  if (dados.totalItens === 0) {
+    mostrarFeedback("Não há itens para salvar.", "warning");
+    return;
+  }
+  document.getElementById("modalOrdem").textContent = dados.todasOrdens.join(", ") || "Sem Ordem";
+  document.getElementById("modalLojas").textContent = dados.lojas.join(", ") || "Sem Loja";
+  document.getElementById("modalTotal").textContent = dados.totalItens;
+  document.getElementById("modalEsperado").textContent = dados.totalEsperado;
+  document.getElementById("modalConferido").textContent = dados.totalConferido;
+  const statusEl = document.getElementById("modalStatus");
+  statusEl.textContent = dados.statusGeral;
+  statusEl.className = "fw-bold " + (dados.statusGeral === "Completo" ? "text-success" : dados.statusGeral === "Parcial" ? "text-warning" : "text-danger");
+  window._dadosSalvar = dados;
+  const modal = new bootstrap.Modal(document.getElementById("modalSalvar"));
+  modal.show();
+}
+
+async function confirmarSalvar() {
+  const dados = window._dadosSalvar;
+  if (!dados) return;
+  const btn = document.getElementById("btnConfirmarSalvar");
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Salvando...';
+  try {
+    const resultado = await DB.salvarConferencia(dados);
+    bootstrap.Modal.getInstance(document.getElementById("modalSalvar")).hide();
+    if (resultado.sucesso) {
+      mostrarFeedback("✓ Conferência salva com sucesso no Firebase!", "success");
+    } else {
+      mostrarFeedback("Erro ao salvar: " + resultado.erro, "danger");
+    }
+  } catch (e) {
+    mostrarFeedback("Erro inesperado: " + e.message, "danger");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-check me-1"></i>Confirmar e Salvar';
+  }
+}
